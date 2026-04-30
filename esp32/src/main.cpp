@@ -1,10 +1,11 @@
 // firmware/src/main.cpp
-// WhizCart ESP32 Firmware
-// Dependencies (install via Arduino Library Manager):
-//   - TFT_eSPI  (Bodmer)          → TFT display driver
-//   - ArduinoJson (Benoit Blanchon) → parse backend JSON
-//   - HX711 (bogde)               → load cell amplifier
-//   - WiFi (built-in ESP32 core)
+// WhizCart ESP32 Firmware — CYD (ESP32-2432S028R)
+//
+// Libraries (install via Arduino Library Manager):
+//   - TFT_eSPI              by Bodmer
+//   - XPT2046_Touchscreen   by Paul Stoffregen
+//   - ArduinoJson           by Benoit Blanchon
+//   - HX711                 by bogde
 
 #include <Arduino.h>
 #include <WiFi.h>
@@ -13,50 +14,68 @@
 #include "api_client.h"
 #include "scale.h"
 
-// ── Config ──────────────────────────────────────────────────────────────────
+// ── Config ────────────────────────────────────────────────────────────────────
 const char* WIFI_SSID     = "YOUR_WIFI_SSID";
 const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* BACKEND_IP    = "192.168.1.100";  // machine running node server
+const char* BACKEND_IP    = "192.168.1.100";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "demo";
 
-// ── Button pins (adjust to your wiring) ─────────────────────────────────────
-#define BTN_CLEAR  15   // Clears the entire cart
-#define BTN_TOGGLE 16   // Switches display between cart view and recommendations
+// ── Weight check frequency ────────────────────────────────────────────────────
+#define WEIGHT_CHECK_EVERY 1   // check after every N scans
 
-// ── State ────────────────────────────────────────────────────────────────────
-float    runningTotal   = 0.0;
-float    expectedWeight = 0.0;  // cumulative expected grams from scanned items
-int      scannedCount   = 0;    // total number of items scanned (inc. duplicates)
-bool     showRecs       = false;
+// ── Screen modes ──────────────────────────────────────────────────────────────
+enum Mode { MODE_TOTAL, MODE_CART, MODE_RECS };
+Mode currentMode = MODE_TOTAL;
 
-// Weight check runs every N scans (not every scan, to reduce latency)
-#define WEIGHT_CHECK_EVERY 1    // set to 1 to check after every scan; increase if slow
+// ── State ─────────────────────────────────────────────────────────────────────
+float    runningTotal = 0.0;
+int      scannedCount = 0;
+CartList cartItems;   // local mirror of cart for touch hit-testing
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+void setMode(Mode m) {
+  currentMode = m;
+  if (m == MODE_TOTAL) {
+    display_showTotal(runningTotal);
+  } else if (m == MODE_CART) {
+    display_showCartList(cartItems, runningTotal);
+  } else if (m == MODE_RECS) {
+    RecommendationList recs = apiClient_getRecommendations();
+    display_showRecommendations(recs);
+  }
+}
+
+// Fetch full cart from backend and rebuild local cartItems mirror
+void refreshCart() {
+  CartResponse cr = apiClient_getCart();
+  runningTotal = cr.total;
+  cartItems    = cr.items;
+}
 
 void connectWiFi() {
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   display_showStatus("Connecting WiFi...");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-  }
-  display_showStatus("WiFi OK: " + WiFi.localIP().toString());
-  delay(1000);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+  display_showStatus("WiFi: " + WiFi.localIP().toString());
+  delay(800);
 }
 
+// ── Setup ─────────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
-  scanner_init();    // UART2 for barcode scanner (see scanner.cpp for pins)
-  display_init();    // TFT setup
-  scale_init();      // HX711 load cell (tares automatically)
-  pinMode(BTN_CLEAR,  INPUT_PULLUP);
-  pinMode(BTN_TOGGLE, INPUT_PULLUP);
+  display_init();
+  scanner_init();
+  scale_init();
   connectWiFi();
   apiClient_init(BACKEND_IP, BACKEND_PORT, CART_ID);
   display_showTotal(0.0);
 }
 
+// ── Main loop ─────────────────────────────────────────────────────────────────
 void loop() {
-  // ── Scan barcode if available ─────────────────────────────────────────────
+
+  // ── 1. Barcode scan ──────────────────────────────────────────────────────
   String barcode = scanner_read();
   if (barcode.length() > 0) {
     display_showStatus("Scanning...");
@@ -65,52 +84,65 @@ void loop() {
     if (result.success) {
       runningTotal = result.total;
       scannedCount++;
+
+      // Rebuild local cart mirror so touch delete stays in sync
+      refreshCart();
+
+      // Show scanned item briefly
       display_showItem(result.productName, result.productPrice, runningTotal);
       delay(1200);
 
-      // ── Weight verification after scan ──────────────────────────────────
+      // Weight check
       if (scannedCount % WEIGHT_CHECK_EVERY == 0) {
         display_showStatus("Checking weight...");
         float measured = scale_readGrams();
         WeightVerifyResult wr = apiClient_verifyWeight(measured, scannedCount);
         display_showWeightCheck(wr.measuredG, wr.expectedG, wr.ok);
-        delay(2500); // hold the weight screen so user can see it
+        delay(2200);
       }
 
-      // Return to total view
-      display_showTotal(runningTotal);
+      // Return to whatever mode was active
+      setMode(currentMode);
 
     } else {
       display_showStatus("Not found: " + barcode);
       delay(1500);
+      setMode(currentMode);
     }
   }
 
-  // ── Toggle button: cart view <-> recommendations ──────────────────────────
-  if (digitalRead(BTN_TOGGLE) == LOW) {
-    showRecs = !showRecs;
-    delay(300); // debounce
-    if (showRecs) {
-      RecommendationList recs = apiClient_getRecommendations();
-      display_showRecommendations(recs);
-    } else {
-      display_showTotal(runningTotal);
+  // ── 2. Touch: delete item (only active in cart list mode) ────────────────
+  if (currentMode == MODE_CART && cartItems.size() > 0) {
+    String tappedBarcode = display_getCartTap(cartItems);
+    if (tappedBarcode.length() > 0) {
+      display_showStatus("Removing item...");
+      DeleteResult dr = apiClient_deleteItem(tappedBarcode);
+      if (dr.success) {
+        runningTotal = dr.total;
+        refreshCart();
+        scale_tare();      // re-zero so scale reflects removed item
+      }
+      display_showCartList(cartItems, runningTotal);
     }
   }
 
-  // ── Clear cart button ─────────────────────────────────────────────────────
-  if (digitalRead(BTN_CLEAR) == LOW) {
-    delay(300);
-    apiClient_clearCart();
-    runningTotal   = 0.0;
-    expectedWeight = 0.0;
-    scannedCount   = 0;
-    showRecs       = false;
-    scale_tare();  // re-zero scale with items removed
-    display_showTotal(0.0);
-    display_showStatus("Cart cleared!");
-    delay(1000);
+  // ── 3. Touch: mode toggle buttons (bottom of total screen) ───────────────
+  // The total screen shows a hint "Tap [Cart] | [Recs]" at the bottom.
+  // We use simple Y-zone taps on the bottom strip (y > 220) to switch modes.
+  // Left half → Cart list    Right half → Recommendations
+  // Any tap while in cart/recs mode on top-left corner → back to total
+  if (currentMode != MODE_CART) {
+    // Check for mode-switch taps — handled inside display_getNavTap()
+    // (returns 'C' for cart, 'R' for recs, 'B' for back, '\0' for none)
+    char nav = display_getNavTap(currentMode);
+    if      (nav == 'C') setMode(MODE_CART);
+    else if (nav == 'R') setMode(MODE_RECS);
+    else if (nav == 'B') setMode(MODE_TOTAL);
+  } else {
+    // In cart mode: back tap goes to total
+    char nav = display_getNavTap(currentMode);
+    if (nav == 'B') setMode(MODE_TOTAL);
   }
 
-  delay(50);
+  delay(40);
 }

@@ -3,11 +3,27 @@
 #include <Arduino.h>
 #include <vector>
 
-struct RecItem { String name; float price; String aisle; };
-typedef std::vector<RecItem> RecommendationList;
+// ── Shared data types ─────────────────────────────────────────────────────────
+struct RecItem  { String name; float price; String aisle; };
+struct CartItem { String barcode; String name; float price; int qty; };
 
-void display_init();
-void display_showStatus(String msg);
-void display_showTotal(float total);
-void display_showItem(String name, float price, float total);
-void display_showRecommendations(RecommendationList& recs);
+typedef std::vector<RecItem>  RecommendationList;
+typedef std::vector<CartItem> CartList;
+
+enum Mode { MODE_TOTAL, MODE_CART, MODE_RECS };
+
+// ── Display functions ─────────────────────────────────────────────────────────
+void   display_init();
+void   display_showStatus(String msg);
+void   display_showTotal(float total);
+void   display_showItem(String name, float price, float total);
+void   display_showRecommendations(RecommendationList& recs);
+void   display_showWeightCheck(float measured, float expected, bool ok);
+void   display_showCartList(CartList& items, float total);
+
+// ── Touch functions ───────────────────────────────────────────────────────────
+// Returns barcode of tapped delete row, or "" if no delete tap detected
+String display_getCartTap(CartList& items);
+
+// Returns 'C' (cart), 'R' (recs), 'B' (back/total), or '\0' (no tap)
+char   display_getNavTap(Mode currentMode);

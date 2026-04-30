@@ -1,7 +1,7 @@
 // firmware/src/api_client.h
 #pragma once
 #include <Arduino.h>
-#include "display.h"  // for RecommendationList
+#include "display.h"  // for CartList, RecommendationList
 
 struct ScanResult {
   bool   success;
@@ -9,10 +9,30 @@ struct ScanResult {
   float  productPrice;
   float  total;
   String errorMsg;
-  
 };
 
-void          apiClient_init(const char* host, int port, const char* cartId);
-ScanResult    apiClient_scan(String barcode);
+struct CartResponse {
+  CartList items;
+  float    total;
+};
+
+struct DeleteResult {
+  bool  success;
+  float total;
+};
+
+struct WeightVerifyResult {
+  bool   ok;
+  float  expectedG;
+  float  measuredG;
+  float  diffG;
+  String message;
+};
+
+void               apiClient_init(const char* host, int port, const char* cartId);
+ScanResult         apiClient_scan(String barcode);
+CartResponse       apiClient_getCart();
+DeleteResult       apiClient_deleteItem(String barcode);
 RecommendationList apiClient_getRecommendations();
-void          apiClient_clearCart();
+void               apiClient_clearCart();
+WeightVerifyResult apiClient_verifyWeight(float measuredG, int itemCount);

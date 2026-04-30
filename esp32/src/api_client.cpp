@@ -108,3 +108,53 @@ WeightVerifyResult apiClient_verifyWeight(float measuredG, int itemCount) {
   http.end();
   return result;
 }
+
+// ── GET /api/cart ─────────────────────────────────────────────────────────────
+CartResponse apiClient_getCart() {
+  CartResponse cr;
+  cr.total = 0.0;
+
+  HTTPClient http;
+  http.begin(baseUrl() + "/api/cart?cartId=" + _cartId);
+  int code = http.GET();
+
+  if (code == 200) {
+    DynamicJsonDocument doc(4096);
+    deserializeJson(doc, http.getString());
+    cr.total = doc["total"].as<float>();
+    JsonArray arr = doc["items"].as<JsonArray>();
+    for (JsonObject obj : arr) {
+      CartItem item;
+      item.barcode = String((const char*)obj["barcode"]);
+      item.name    = String((const char*)obj["name"]);
+      item.price   = obj["price"].as<float>();
+      item.qty     = obj["qty"].as<int>();
+      cr.items.push_back(item);
+    }
+  }
+
+  http.end();
+  return cr;
+}
+
+// ── DELETE /api/cart/item ────────────────────────────────────────────────────
+DeleteResult apiClient_deleteItem(String barcode) {
+  DeleteResult result = { false, 0.0 };
+
+  HTTPClient http;
+  http.begin(baseUrl() + "/api/cart/item");
+  http.addHeader("Content-Type", "application/json");
+
+  String body = "{\"barcode\":\"" + barcode + "\",\"cartId\":\"" + _cartId + "\"}";
+  int code = http.sendRequest("DELETE", body);
+
+  if (code == 200) {
+    DynamicJsonDocument doc(512);
+    deserializeJson(doc, http.getString());
+    result.success = true;
+    result.total   = doc["total"].as<float>();
+  }
+
+  http.end();
+  return result;
+}
