@@ -1,25 +1,55 @@
-// firmware/src/scanner.cpp
-// Reads barcode strings from a UART barcode scanner module.
-// Most USB/TTL barcode scanners output the barcode followed by CR+LF.
-// Wiring: Scanner TX → ESP32 GPIO16 (RX2), Scanner RX → ESP32 GPIO17 (TX2)
-// Adjust RX_PIN / TX_PIN and BAUD_RATE to match your scanner module.
+#include "whizcart.h"
 
-#include "scanner.h"
-
-#define SCANNER_RX   16
-#define SCANNER_TX   17
-#define BAUD_RATE    9600
-
-HardwareSerial scannerSerial(2); // UART2
-
-void scanner_init() {
-  scannerSerial.begin(BAUD_RATE, SERIAL_8N1, SCANNER_RX, SCANNER_TX);
+namespace {
+HardwareSerial scanner(2);
+constexpr int SCANNER_RX_PIN = 27;
+constexpr int SCANNER_TX_PIN = 22;
 }
 
-String scanner_read() {
-  if (!scannerSerial.available()) return "";
+void initScanner() {
+  scanner.begin(9600, SERIAL_8N1, SCANNER_RX_PIN, SCANNER_TX_PIN);
+}
 
-  String raw = scannerSerial.readStringUntil('\n');
-  raw.trim(); // strip CR, LF, whitespace
-  return raw;
+static void processScannedCode(const String& code) {
+  bool found = false;
+
+  for (size_t i = 0; i < itemCount; i++) {
+    if (code == items[i].barcode) {
+      Serial.println(items[i].name);
+      Serial.println(items[i].price);
+
+      price += items[i].price;
+
+      addToCart(items[i]);
+      updateCartUI(items[i].name, items[i].price, price);
+
+      if (lv_screen_active() == cartScreen) {
+        refreshCartList();
+      }
+
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    showItemNotFound();
+  }
+}
+
+void pollScanner() {
+  if (scanner.available()) {
+    String code = scanner.readStringUntil('\n');
+    code.trim();
+
+    if (code.length() > 0) {
+      Serial.print("Scanned: ");
+      Serial.println(code);
+      processScannedCode(code);
+    }
+  }
+
+  lv_timer_handler();
+  lv_tick_inc(5);
+  delay(5);
 }
