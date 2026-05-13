@@ -386,4 +386,22 @@ button.btn-danger:hover {
   .card {
     padding: 16px;
   }
+  .pay-btn {
+  margin-top: 18px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.payment-note {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+button.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
 }
