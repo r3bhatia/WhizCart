@@ -4,11 +4,14 @@
 // To expand: just add more objects to this array.
 
 const products = [
+  //testing
+  { barcode: "6928804011128", name: "Coca-Cola (500ml)", price: 1.99, aisle: "G2", category: "beverages", weightG: 520, tags: ["drink", "soda", "snack"] },
   // ── Dairy ────────────────────────────────────────────────────────────────
   { barcode: "012345678901", name: "Whole Milk (1 gal)",    price: 3.99, aisle: "A3", category: "dairy",    weightG: 3900, tags: ["dairy", "breakfast", "drink"] },
   { barcode: "012345678902", name: "Cheddar Cheese (8oz)",  price: 4.49, aisle: "A3", category: "dairy",    weightG: 227,  tags: ["dairy", "snack", "sandwich"] },
   { barcode: "012345678903", name: "Greek Yogurt",          price: 1.99, aisle: "A3", category: "dairy",    weightG: 170,  tags: ["dairy", "breakfast", "healthy"] },
   { barcode: "012345678904", name: "Butter (1 lb)",         price: 3.49, aisle: "A3", category: "dairy",    weightG: 454,  tags: ["dairy", "baking", "cooking"] },
+  { barcode: "8480000107480", name: "Whole Milk (2 gal)",    price: 3.99, aisle: "A3", category: "dairy",    weightG: 3900, tags: ["dairy", "breakfast", "drink"] },
 
   // ── Bread & Bakery ───────────────────────────────────────────────────────
   { barcode: "012345678905", name: "White Sandwich Bread",  price: 2.99, aisle: "B1", category: "bakery",   weightG: 567,  tags: ["bread", "sandwich", "breakfast"] },

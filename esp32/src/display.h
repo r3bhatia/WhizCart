@@ -22,7 +22,7 @@ void   display_showWeightCheck(float measured, float expected, bool ok);
 void   display_showCartList(CartList& items, float total);
 
 // ── Touch functions ───────────────────────────────────────────────────────────
-// Returns barcode of tapped delete row, or "" if no delete tap detected
+// Returns barcode of tapped delete row, or "" if no delete tap detect
 String display_getCartTap(CartList& items);
 
 // Returns 'C' (cart), 'R' (recs), 'B' (back/total), or '\0' (no tap)

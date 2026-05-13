@@ -12,12 +12,12 @@
 #include "scanner.h"
 #include "display.h"
 #include "api_client.h"
-#include "scale.h"
+//#include "scale.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-const char* BACKEND_IP    = "192.168.1.100";
+const char* WIFI_SSID     = "Suhyun";
+const char* WIFI_PASSWORD = "12345678";
+const char* BACKEND_IP    = "172.20.10.8";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "demo";
 
@@ -25,7 +25,7 @@ const char* CART_ID       = "demo";
 #define WEIGHT_CHECK_EVERY 1   // check after every N scans
 
 // ── Screen modes ──────────────────────────────────────────────────────────────
-enum Mode { MODE_TOTAL, MODE_CART, MODE_RECS };
+//enum Mode { MODE_TOTAL, MODE_CART, MODE_RECS };
 Mode currentMode = MODE_TOTAL;
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -64,17 +64,69 @@ void connectWiFi() {
 // ── Setup ─────────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
+  delay(2000);
+  Serial.println("Booting WhizCart...");
+  display_init();
+  Serial.println("Display OK");
+  scanner_init();
+  Serial.println("Scanner OK");
+  // scale_init();
+  Serial.println("About to connect WiFi...");
+  connectWiFi();
+  Serial.println("WiFi done");
+  Serial.println("About to init API...");
+  apiClient_init(BACKEND_IP, BACKEND_PORT, CART_ID);
+  Serial.println("API OK");
+  display_showTotal(0.0);
+  Serial.println("Setup complete");
+/*
+  Serial.begin(115200);
   display_init();
   scanner_init();
   scale_init();
   connectWiFi();
   apiClient_init(BACKEND_IP, BACKEND_PORT, CART_ID);
   display_showTotal(0.0);
+  */
+}
+
+unsigned long lastPollMs = 0;
+float lastKnownTotal = -1.0;
+
+void pollCartIfNeeded() {
+  if (millis() - lastPollMs < 4000) return;
+  lastPollMs = millis();
+
+  Serial.println("Polling backend...");
+  CartResponse cr = apiClient_getCart();
+  Serial.printf("Got total: %.2f, items: %d\n", cr.total, (int)cr.items.size());
+
+  if (cr.total != lastKnownTotal) {
+    lastKnownTotal = cr.total;
+    runningTotal   = cr.total;
+    cartItems      = cr.items;
+
+    // Show the scanned item name briefly
+    if (!cr.items.empty()) {
+      CartItem& last = cr.items.back();
+      display_showItem(last.name, last.price, cr.total);
+      delay(2000);  // show item for 2 seconds
+    }
+
+    // Then switch to cart list so all items are visible
+    currentMode = MODE_CART;
+    display_showCartList(cartItems, runningTotal);
+    Serial.println("Screen updated with cart list!");
+  }
 }
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 void loop() {
-
+  static int loopCount = 0;
+  loopCount++;
+  if (loopCount % 100 == 0) {
+    Serial.printf("Loop running, millis=%lu\n", millis());
+  }
   // ── 1. Barcode scan ──────────────────────────────────────────────────────
   String barcode = scanner_read();
   if (barcode.length() > 0) {
@@ -91,7 +143,7 @@ void loop() {
       // Show scanned item briefly
       display_showItem(result.productName, result.productPrice, runningTotal);
       delay(1200);
-
+/*
       // Weight check
       if (scannedCount % WEIGHT_CHECK_EVERY == 0) {
         display_showStatus("Checking weight...");
@@ -99,7 +151,7 @@ void loop() {
         WeightVerifyResult wr = apiClient_verifyWeight(measured, scannedCount);
         display_showWeightCheck(wr.measuredG, wr.expectedG, wr.ok);
         delay(2200);
-      }
+      }*/
 
       // Return to whatever mode was active
       setMode(currentMode);
@@ -120,7 +172,7 @@ void loop() {
       if (dr.success) {
         runningTotal = dr.total;
         refreshCart();
-        scale_tare();      // re-zero so scale reflects removed item
+        //scale_tare();      // re-zero so scale reflects removed item
       }
       display_showCartList(cartItems, runningTotal);
     }
@@ -143,6 +195,6 @@ void loop() {
     char nav = display_getNavTap(currentMode);
     if (nav == 'B') setMode(MODE_TOTAL);
   }
-
+  pollCartIfNeeded();
   delay(40);
 }

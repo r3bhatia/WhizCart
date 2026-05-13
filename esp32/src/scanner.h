@@ -3,4 +3,4 @@
 #include <Arduino.h>
 
 void   scanner_init();
-String scanner_read();  // returns "" if no barcode ready
+String scanner_read();
