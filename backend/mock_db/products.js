@@ -46,7 +46,9 @@ const products = [
 
   // ── Beverages ────────────────────────────────────────────────────────────
   { barcode: "012345678926", name: "Orange Juice (52oz)",      price: 4.99, aisle: "G1", category: "beverages", weightG: 1560, tags: ["drink", "breakfast", "fruit"] },
+  { barcode: "01289903", name: "MUG Root Beer (12oz)",      price: 4.99, aisle: "G1", category: "beverages", weightG: 385, tags: ["drink", "soda", "beer"] },
   { barcode: "012345678927", name: "Sparkling Water (12-pack)", price: 5.99, aisle: "G2", category: "beverages", weightG: 4320, tags: ["drink", "healthy"] },
+  { barcode: "61126900362", name: "Sudachi Lime Red Bull (summer edition)", price: 5.99, aisle: "G2", category: "beverages", weightG: 258, tags: ["drink", "healthy"] },
   { barcode: "012345678928", name: "Coffee (12oz ground)",     price: 8.99, aisle: "G3", category: "beverages", weightG: 340,  tags: ["breakfast", "drink", "coffee"] },
   { barcode: "012345678929", name: "Almond Milk (64oz)",       price: 3.99, aisle: "G1", category: "beverages", weightG: 1920, tags: ["drink", "dairy", "breakfast", "healthy"] },
 
