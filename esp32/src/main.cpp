@@ -15,9 +15,9 @@
 //#include "scale.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const char* WIFI_SSID     = "Suhyun";
-const char* WIFI_PASSWORD = "12345678";
-const char* BACKEND_IP    = "172.20.10.8";
+const char* WIFI_SSID     = "iPhone";
+const char* WIFI_PASSWORD = "freshboi";
+const char* BACKEND_IP    = "172.20.10.5";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "demo";
 
