@@ -19,7 +19,7 @@
 #define TOUCH_MISO 39
 #define TOUCH_CLK  25
 
-// ── Layout constants (landscape 320×240) ─────────────────────────────────────
+// ── Layout constants ──────────────────────────────────────────────────────────
 #define HEADER_H      32
 #define STATUS_H      22
 #define NAV_H         32
@@ -28,8 +28,6 @@
 #define ITEM_START_Y  CONTENT_Y
 #define MAX_CART_ROWS  4
 #define DEL_BTN_W     52
-#define SCREEN_W     320
-#define SCREEN_H     240
 
 // ── Color palette ─────────────────────────────────────────────────────────────
 #define BG_COLOR     TFT_BLACK
@@ -55,6 +53,9 @@ TFT_eSPI tft = TFT_eSPI();
 SPIClass touchSPI(VSPI);
 XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
 
+int screenW = 320;
+int screenH = 240;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 struct ScreenPoint { int x; int y; bool valid; };
 
@@ -64,7 +65,7 @@ String fitText(String text, int maxChars) {
 }
 
 void drawHeader() {
-  tft.fillRect(0, 0, SCREEN_W, HEADER_H, ACCENT);
+  tft.fillRect(0, 0, screenW, HEADER_H, ACCENT);
   tft.setTextSize(2);
   tft.setTextColor(TFT_BLACK, ACCENT);
   tft.setCursor(8, 8);
@@ -72,37 +73,38 @@ void drawHeader() {
 }
 
 void clearContent() {
-  tft.fillRect(0, HEADER_H, SCREEN_W, SCREEN_H - HEADER_H, BG_COLOR);
+  tft.fillRect(0, HEADER_H, screenW, screenH - HEADER_H, BG_COLOR);
 }
 
 void drawNavBar() {
-  int y = SCREEN_H - NAV_H;
-  tft.fillRect(0, y, SCREEN_W, NAV_H, PANEL_COLOR);
-  tft.drawLine(SCREEN_W / 2, y, SCREEN_W / 2, SCREEN_H, BORDER_COLOR);
+  int y = screenH - NAV_H;
+  tft.fillRect(0, y, screenW, NAV_H, PANEL_COLOR);
+  tft.drawLine(screenW / 2, y, screenW / 2, screenH, BORDER_COLOR);
 
   tft.setTextSize(2);
   tft.setTextColor(TEXT_MAIN, PANEL_COLOR);
   tft.setCursor(44, y + 8);
   tft.print("Cart");
-  tft.setCursor(196, y + 8);
+  tft.setCursor(screenW - 124, y + 8);
   tft.print("Recs");
 }
 
 void drawBackHint() {
-  tft.fillRoundRect(226, 5, 86, 22, 5, PANEL_COLOR);
+  int x = max(screenW - 94, 0);
+  tft.fillRoundRect(x, 5, 86, 22, 5, PANEL_COLOR);
   tft.setTextSize(1);
   tft.setTextColor(TEXT_MAIN, PANEL_COLOR);
-  tft.setCursor(240, 12);
+  tft.setCursor(x + 14, 12);
   tft.print("BACK");
 }
 
 ScreenPoint getTouchPoint() {
   if (!ts.tirqTouched() || !ts.touched()) return { 0, 0, false };
   TS_Point p = ts.getPoint();
-  int sx = map(p.x, TOUCH_X_MIN, TOUCH_X_MAX, 0, SCREEN_W);
-  int sy = map(p.y, TOUCH_Y_MIN, TOUCH_Y_MAX, 0, SCREEN_H);
-  sx = constrain(sx, 0, SCREEN_W - 1);
-  sy = constrain(sy, 0, SCREEN_H - 1);
+  int sx = map(p.x, TOUCH_X_MIN, TOUCH_X_MAX, 0, screenW);
+  int sy = map(p.y, TOUCH_Y_MIN, TOUCH_Y_MAX, 0, screenH);
+  sx = constrain(sx, 0, screenW - 1);
+  sy = constrain(sy, 0, screenH - 1);
   return { sx, sy, true };
 }
 
@@ -115,6 +117,8 @@ void waitForTouchRelease() {
 void display_init() {
   tft.init();
   tft.setRotation(1);
+  screenW = tft.width();
+  screenH = tft.height();
   tft.fillScreen(BG_COLOR);
 
   pinMode(21, OUTPUT);
@@ -130,7 +134,7 @@ void display_init() {
 
 // ── Status line ───────────────────────────────────────────────────────────────
 void display_showStatus(String msg) {
-  tft.fillRect(0, HEADER_H, SCREEN_W, STATUS_H, BG_COLOR);
+  tft.fillRect(0, HEADER_H, screenW, STATUS_H, BG_COLOR);
   tft.setTextSize(1);
   tft.setTextColor(TEXT_DIM, BG_COLOR);
   tft.setCursor(8, HEADER_H + 7);
@@ -182,7 +186,7 @@ void display_showItem(String name, float price, float total) {
   tft.print("$");
   tft.print(price, 2);
 
-  tft.drawLine(0, CONTENT_Y + 84, SCREEN_W, CONTENT_Y + 84, BORDER_COLOR);
+  tft.drawLine(0, CONTENT_Y + 84, screenW, CONTENT_Y + 84, BORDER_COLOR);
 
   tft.setTextSize(1);
   tft.setTextColor(TEXT_DIM, BG_COLOR);
@@ -204,7 +208,7 @@ void display_showCartList(CartList& items, float total) {
   if (items.empty()) {
     tft.setTextSize(2);
     tft.setTextColor(TEXT_DIM, BG_COLOR);
-    tft.setCursor(40, SCREEN_H / 2 - 12);
+    tft.setCursor(40, screenH / 2 - 12);
     tft.print("Cart is empty");
     return;
   }
@@ -229,18 +233,18 @@ void display_showCartList(CartList& items, float total) {
       tft.print(items[i].qty);
     }
 
-    tft.fillRoundRect(SCREEN_W - DEL_BTN_W - 6, y + 4, DEL_BTN_W, ITEM_ROW_H - 10, 6, DEL_BG);
+    tft.fillRoundRect(screenW - DEL_BTN_W - 6, y + 4, DEL_BTN_W, ITEM_ROW_H - 10, 6, DEL_BG);
     tft.setTextColor(DEL_COLOR, DEL_BG);
     tft.setTextSize(1);
-    tft.setCursor(SCREEN_W - DEL_BTN_W + 3, y + 10);
+    tft.setCursor(screenW - DEL_BTN_W + 3, y + 10);
     tft.print("DEL");
 
-    tft.drawLine(0, rowBottom, SCREEN_W, rowBottom, BORDER_COLOR);
+    tft.drawLine(0, rowBottom, screenW, rowBottom, BORDER_COLOR);
   }
 
   tft.setTextSize(1);
   tft.setTextColor(TEXT_DIM, BG_COLOR);
-  tft.setCursor(8, SCREEN_H - 18);
+  tft.setCursor(8, screenH - 18);
   if ((int)items.size() > MAX_CART_ROWS) {
     tft.print("+");
     tft.print(items.size() - MAX_CART_ROWS);
@@ -256,7 +260,7 @@ String display_getCartTap(CartList& items) {
   ScreenPoint p = getTouchPoint();
   if (!p.valid) return "";
 
-  if (p.x < SCREEN_W - DEL_BTN_W - 6) return "";
+  if (p.x < screenW - DEL_BTN_W - 6) return "";
 
   int row = (p.y - ITEM_START_Y) / ITEM_ROW_H;
   if (row < 0 || row >= (int)items.size() || row >= MAX_CART_ROWS) return "";
@@ -301,7 +305,7 @@ void display_showRecommendations(RecommendationList& recs) {
     tft.print(recs[i].aisle);
 
     y += 34;
-    tft.drawLine(0, y - 4, SCREEN_W, y - 4, BORDER_COLOR);
+    tft.drawLine(0, y - 4, screenW, y - 4, BORDER_COLOR);
   }
 }
 
@@ -313,7 +317,7 @@ void display_showWeightCheck(float measured, float expected, bool ok) {
   uint16_t statusColor = ok ? PRICE_COLOR : WARN_COLOR;
   uint16_t bgTint = ok ? 0x0440 : 0x4200;
 
-  tft.fillRoundRect(6, CONTENT_Y, SCREEN_W - 12, 44, 8, bgTint);
+  tft.fillRoundRect(6, CONTENT_Y, screenW - 12, 44, 8, bgTint);
   tft.setTextSize(2);
   tft.setTextColor(statusColor, bgTint);
   tft.setCursor(16, CONTENT_Y + 13);
@@ -351,14 +355,14 @@ char display_getNavTap(Mode currentMode) {
   ScreenPoint p = getTouchPoint();
   if (!p.valid) return '\0';
 
-  if (p.x > 220 && p.y < HEADER_H + 4 && currentMode != MODE_TOTAL) {
+  if (p.x > screenW - 100 && p.y < HEADER_H + 4 && currentMode != MODE_TOTAL) {
     waitForTouchRelease();
     return 'B';
   }
 
-  if (p.y > SCREEN_H - NAV_H) {
+  if (p.y > screenH - NAV_H) {
     waitForTouchRelease();
-    if (p.x < SCREEN_W / 2) return 'C';
+    if (p.x < screenW / 2) return 'C';
     return 'R';
   }
 

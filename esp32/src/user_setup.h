@@ -27,7 +27,7 @@
 #define TFT_BL   21   // backlight — set HIGH to turn on
 
 // ── SPI frequency ────────────────────────────────────────────────────────────
-#define SPI_FREQUENCY       55000000
+#define SPI_FREQUENCY       40000000
 #define SPI_READ_FREQUENCY  20000000
 
 // ── Touch SPI is on a SEPARATE bus (VSPI) ────────────────────────────────────
