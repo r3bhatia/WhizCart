@@ -2,12 +2,7 @@
 
 #include <Arduino.h>
 #include "api_client.h"
-
-enum Mode {
-  MODE_TOTAL,
-  MODE_CART,
-  MODE_RECS
-};
+#include "display.h"
 
 void display_init();
 void display_tick();

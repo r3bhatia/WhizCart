@@ -1,0 +1,5 @@
+.DS_Store
+.pio/
+**/.pio/
+node_modules/
+**/node_modules/
