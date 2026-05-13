@@ -311,6 +311,92 @@ button.btn-danger:hover {
   background: #fecaca;
 }
 
+button.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.add-btn {
+  margin-top: 12px;
+  padding: 8px 14px;
+}
+
+.checkout-button {
+  margin-top: 18px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.checkout-result {
+  display: grid;
+  justify-items: center;
+}
+
+.checkout-status,
+.checkout-error {
+  margin: 12px auto 0;
+  max-width: 480px;
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+
+.checkout-status {
+  color: var(--muted);
+}
+
+.checkout-status a,
+.back-link {
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.checkout-error {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.search-notice {
+  color: var(--success);
+  font-size: 0.95rem;
+  font-weight: 800;
+  margin: -12px 0 18px;
+}
+
+.mock-checkout {
+  max-width: 480px;
+  margin: 24px auto 0;
+}
+
+.mock-checkout-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.mock-checkout-brand {
+  color: var(--text);
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.mock-checkout-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+}
+
+.mock-checkout-summary strong {
+  color: var(--price);
+}
+
+.mock-pay-button {
+  width: 100%;
+}
+
 /* Empty state */
 .empty {
   color: var(--muted);
@@ -386,22 +472,7 @@ button.btn-danger:hover {
   .card {
     padding: 16px;
   }
-  .pay-btn {
-  margin-top: 18px;
-  width: 100%;
-  max-width: 280px;
-}
-
-.payment-note {
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 0.95rem;
-  text-align: center;
-}
-
-button.btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-  transform: none;
-}
+  .checkout-button {
+    max-width: none;
+  }
 }
