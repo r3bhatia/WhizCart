@@ -11,6 +11,7 @@ app.use(express.json());
 const itemsRouter = require("./routes/items");
 const cartRouter  = require("./routes/cart");
 const recsRouter  = require("./routes/recommendations");
+const checkoutRouter = require("./routes/checkout");
 
 // Expose the in-memory cart store globally so recommendations can read it
 const cartModule = require("./routes/cart");
@@ -19,6 +20,7 @@ const cartModule = require("./routes/cart");
 app.use("/api/items", itemsRouter);
 app.use("/api/cart",  cartRouter);
 app.use("/api/recommendations", recsRouter);
+app.use("/api/checkout", checkoutRouter);
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "WhizCart backend running" }));

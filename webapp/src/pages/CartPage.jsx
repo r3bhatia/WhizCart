@@ -4,16 +4,17 @@ import RecommendationPanel from "../components/RecommendationPanel";
 
 const CART_ID = "demo";
 
-// Replace this with your real payment link later.
-// Examples: Stripe Payment Link, Square Checkout Link, PayPal Checkout Link, etc.
-const PAYMENT_URL = "https://example.com/payment";
-
 export default function CartPage() {
   const [cart, setCart] = useState({ items: [], total: 0 });
   const [recs, setRecs] = useState([]);
   const [weightStatus, setWeightStatus] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [isPaying, setIsPaying] = useState(false);
+  const [checkout, setCheckout] = useState({
+    loading: false,
+    error: "",
+    url: "",
+    mode: "",
+  });
 
   async function fetchCart() {
     const res = await fetch(`/api/cart?cartId=${CART_ID}`);
@@ -74,25 +75,34 @@ export default function CartPage() {
     setCart({ items: [], total: 0 });
     setRecs([]);
     setWeightStatus(null);
+    setCheckout({ loading: false, error: "", url: "", mode: "" });
   }
 
-  // ── Payment redirect ────────────────────────────────────────────────────────
-  function handlePayment() {
-    if (cart.total <= 0 || cart.items.length === 0) return;
+  // ── Generate Stripe checkout URL ──────────────────────────────────────────
+  async function createCheckoutUrl() {
+    setCheckout({ loading: true, error: "", url: "", mode: "" });
 
-    setIsPaying(true);
+    try {
+      const res = await fetch("/api/checkout/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cartId: CART_ID }),
+      });
+      const data = await res.json();
 
-    // Opens payment page in a new tab.
-    // In a real app, this should be a Stripe/Square/PayPal checkout URL.
-    window.open(PAYMENT_URL, "_blank", "noopener,noreferrer");
+      if (!res.ok) {
+        throw new Error(data.error || "Could not create checkout URL");
+      }
 
-    setTimeout(() => {
-      setIsPaying(false);
-    }, 1000);
+      setCheckout({ loading: false, error: "", url: data.url, mode: data.mode });
+      window.location.assign(data.url);
+    } catch (error) {
+      setCheckout({ loading: false, error: error.message, url: "", mode: "" });
+    }
   }
 
   const totalQty = cart.items.reduce((s, i) => s + i.qty, 0);
-  const canPay = cart.items.length > 0 && cart.total > 0;
+  const canCheckout = cart.items.length > 0 && cart.total > 0;
 
   return (
     <div>
@@ -107,17 +117,26 @@ export default function CartPage() {
         </p>
 
         <button
-          className="btn btn-primary pay-btn"
-          onClick={handlePayment}
-          disabled={!canPay || isPaying}
-          aria-disabled={!canPay || isPaying}
+          className="btn btn-primary checkout-button"
+          onClick={createCheckoutUrl}
+          disabled={!canCheckout || checkout.loading}
+          aria-disabled={!canCheckout || checkout.loading}
         >
-          {isPaying ? "Opening Payment..." : "Pay Now"}
+          {checkout.loading ? "Creating checkout..." : "Go to Stripe Checkout"}
         </button>
 
-        <p className="payment-note">
-          You will be redirected to a secure payment page.
-        </p>
+        {checkout.url && (
+          <div className="checkout-result">
+            <p className="checkout-status">
+              {checkout.mode === "mock" ? "Mock checkout URL:" : "Stripe test checkout URL:"}{" "}
+              <a href={checkout.url} target="_blank" rel="noreferrer">
+                {checkout.url}
+              </a>
+            </p>
+          </div>
+        )}
+
+        {checkout.error && <p className="checkout-error">{checkout.error}</p>}
       </div>
 
       {/* Weight verification badge */}

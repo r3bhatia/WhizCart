@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import SearchPage from "./pages/SearchPage";
 import CartPage   from "./pages/CartPage";
+import MockCheckoutPage from "./pages/MockCheckoutPage";
 import "./index.css";
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
           <Routes>
             <Route path="/"     element={<SearchPage />} />
             <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout/mock" element={<MockCheckoutPage />} />
           </Routes>
         </main>
       </div>

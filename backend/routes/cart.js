@@ -108,3 +108,4 @@ router.get("/weight-status", (req, res) => {
 });
 
 module.exports = router;
+module.exports.getCart = getCart;
