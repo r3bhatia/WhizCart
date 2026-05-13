@@ -10,8 +10,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "scanner.h"
-#include "display.h"
+// #include "display.h"
 #include "api_client.h"
+#include "whizcart.h"
 //#include "scale.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -122,6 +123,8 @@ void pollCartIfNeeded() {
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 void loop() {
+  display_tick();
+
   static int loopCount = 0;
   loopCount++;
   if (loopCount % 100 == 0) {

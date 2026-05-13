@@ -20,6 +20,7 @@ void   display_showItem(String name, float price, float total);
 void   display_showRecommendations(RecommendationList& recs);
 void   display_showWeightCheck(float measured, float expected, bool ok);
 void   display_showCartList(CartList& items, float total);
+void   display_tick();
 
 // ── Touch functions ───────────────────────────────────────────────────────────
 // Returns barcode of tapped delete row, or "" if no delete tap detect
