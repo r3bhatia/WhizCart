@@ -1,0 +1,5 @@
+https://github.com/PaulStoffregen/XPT2046_Touchscreen.git
+lvgl/lvgl@8.3.11
+bogde/HX711 @ ^0.7.5
+bblanchon/ArduinoJson @ ^6.21.3
+bodmer/TFT_eSPI @ ^2.5.43
