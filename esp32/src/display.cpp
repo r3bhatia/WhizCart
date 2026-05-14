@@ -125,7 +125,7 @@ static void lvFlush(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* colo
 
 
 // ── LVGL touch callback ──────────────────────────────────────────────────────
-static void lvTouchRead(lv_indev_drv_t* indev_driver, lv_indev_data_t* data) {
+/*static void lvTouchRead(lv_indev_drv_t* indev_driver, lv_indev_data_t* data) {
   if (!ts.tirqTouched() || !ts.touched()) {
     data->state = LV_INDEV_STATE_REL;
     return;
@@ -147,7 +147,40 @@ static void lvTouchRead(lv_indev_drv_t* indev_driver, lv_indev_data_t* data) {
   data->point.x = sx;
   data->point.y = sy;
 }
+*/
+static void lvTouchRead(lv_indev_drv_t* indev_driver, lv_indev_data_t* data) {
+  if (!ts.tirqTouched() || !ts.touched()) {
+    data->state = LV_INDEV_STATE_REL;
+    return;
+  }
 
+  TS_Point p = ts.getPoint();
+
+  int sx = map(p.x, TOUCH_X_MIN, TOUCH_X_MAX, SCREEN_W, 0);
+  int sy = map(p.y, TOUCH_Y_MIN, TOUCH_Y_MAX, SCREEN_H, 0);
+
+  sx = constrain(sx, 0, SCREEN_W - 1);
+  sy = constrain(sy, 0, SCREEN_H - 1);
+
+  static unsigned long lastPrint = 0;
+  if (millis() - lastPrint > 250) {
+    lastPrint = millis();
+
+    Serial.print("RAW touch x=");
+    Serial.print(p.x);
+    Serial.print(" y=");
+    Serial.print(p.y);
+
+    Serial.print("  -> SCREEN x=");
+    Serial.print(sx);
+    Serial.print(" y=");
+    Serial.println(sy);
+  }
+
+  data->state = LV_INDEV_STATE_PR;
+  data->point.x = sx;
+  data->point.y = sy;
+}
 
 // ── LVGL tick task ───────────────────────────────────────────────────────────
 static void lvTickTask(void* parameter) {
@@ -578,20 +611,36 @@ void display_showCartList(CartList& items, float total) {
     lv_obj_set_style_text_color(priceLabel, COLOR_MUTED, 0);
     lv_obj_set_pos(priceLabel, 6, 24);
 
-
+/*
     lv_obj_t* delBtn = lv_btn_create(row);
     lv_obj_add_style(delBtn, &styleButtonDanger, 0);
     lv_obj_set_size(delBtn, 82, 34);
     lv_obj_align(delBtn, LV_ALIGN_RIGHT_MID, -2, 0);
+*/
+    // Delete button hit area: right side of the row
+// Parent is lv_scr_act(), not row, so the row cannot steal touch events.
+lv_obj_t* delBtn = lv_btn_create(lv_scr_act());
+lv_obj_add_style(delBtn, &styleButtonDanger, 0);
+
+// Match the visible right-side area of the row
+lv_obj_set_size(delBtn, 92, 42);
+lv_obj_set_pos(delBtn, 220, y + 4);
+
+lv_obj_clear_flag(delBtn, LV_OBJ_FLAG_SCROLLABLE);
+lv_obj_add_flag(delBtn, LV_OBJ_FLAG_CLICKABLE);
+
+// RELEASED is reliable for resistive touch
+lv_obj_add_event_cb(delBtn, deleteButtonEvent, LV_EVENT_RELEASED, (void*)(uintptr_t)i);
+
+lv_obj_t* delLabel = lv_label_create(delBtn);
+lv_label_set_text(delLabel, "Delete");
+lv_obj_center(delLabel);
 
     lv_obj_clear_flag(delBtn, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(delBtn, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_add_event_cb(delBtn, deleteButtonEvent, LV_EVENT_RELEASED, (void*)(uintptr_t)i);
 
-    lv_obj_t* delLabel = lv_label_create(delBtn);
-    lv_label_set_text(delLabel, "Delete");
-    lv_obj_center(delLabel);
   }
 
 
