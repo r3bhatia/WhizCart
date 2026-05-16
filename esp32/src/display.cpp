@@ -138,7 +138,7 @@ void display_showStatus(String msg) {
 }
 
 // ── Running total (home screen) ───────────────────────────────────────────────
-void display_showTotal(float total) {
+void display_showTotal(float total, float measuredWeightG) {
   drawHeader();
   clearContent();
 
@@ -156,13 +156,19 @@ void display_showTotal(float total) {
   tft.setTextSize(1);
   tft.setTextColor(TEXT_DIM, BG_COLOR);
   tft.setCursor(8, CONTENT_Y + 92);
-  tft.print("Tap a bottom button to switch views");
+  if (measuredWeightG >= 0) {
+    tft.print("Cart weight: ");
+    tft.print(measuredWeightG, 1);
+    tft.print("g");
+  } else {
+    tft.print("Tap a bottom button to switch views");
+  }
 
   drawNavBar();
 }
 
 // ── Just-scanned item flash ───────────────────────────────────────────────────
-void display_showItem(String name, float price, float total) {
+void display_showItem(String name, float price, float weightG, float total) {
   drawHeader();
   clearContent();
 
@@ -182,6 +188,14 @@ void display_showItem(String name, float price, float total) {
   tft.print("$");
   tft.print(price, 2);
 
+  if (weightG > 0) {
+    tft.setTextSize(1);
+    tft.setTextColor(TEXT_DIM, BG_COLOR);
+    tft.setCursor(120, CONTENT_Y + 62);
+    tft.print(weightG, 0);
+    tft.print("g");
+  }
+
   tft.drawLine(0, CONTENT_Y + 84, SCREEN_W, CONTENT_Y + 84, BORDER_COLOR);
 
   tft.setTextSize(1);
@@ -196,7 +210,7 @@ void display_showItem(String name, float price, float total) {
 }
 
 // ── Cart list with tappable delete buttons ────────────────────────────────────
-void display_showCartList(CartList& items, float total) {
+void display_showCartList(CartList& items, float total, float measuredWeightG) {
   drawHeader();
   drawBackHint();
   clearContent();
@@ -223,6 +237,12 @@ void display_showCartList(CartList& items, float total) {
     tft.setCursor(8, y + 22);
     tft.print("$");
     tft.print(items[i].price, 2);
+    if (items[i].weightG > 0) {
+      tft.setTextColor(TEXT_DIM, BG_COLOR);
+      tft.print(" ");
+      tft.print(items[i].weightG, 0);
+      tft.print("g");
+    }
     if (items[i].qty > 1) {
       tft.setTextColor(TEXT_DIM, BG_COLOR);
       tft.print(" qty ");
@@ -249,6 +269,12 @@ void display_showCartList(CartList& items, float total) {
   tft.setTextColor(TEXT_MAIN, BG_COLOR);
   tft.print("Total: $");
   tft.print(total, 2);
+  if (measuredWeightG >= 0) {
+    tft.setTextColor(TEXT_DIM, BG_COLOR);
+    tft.print("  ");
+    tft.print(measuredWeightG, 0);
+    tft.print("g");
+  }
 }
 
 // ── Touch handler for cart list ───────────────────────────────────────────────

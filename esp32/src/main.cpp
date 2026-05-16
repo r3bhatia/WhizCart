@@ -12,12 +12,12 @@
 #include "scanner.h"
 #include "display.h"
 #include "api_client.h"
-//#include "scale.h"
+#include "scale.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const char* WIFI_SSID     = "Suhyun";
-const char* WIFI_PASSWORD = "12345678";
-const char* BACKEND_IP    = "172.20.10.8";
+const char* WIFI_SSID     = "anslove5G";
+const char* WIFI_PASSWORD = "#23#29#07#";
+const char* BACKEND_IP    = "192.168.50.103";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "demo";
 
@@ -31,19 +31,28 @@ Mode currentMode = MODE_TOTAL;
 // ── State ─────────────────────────────────────────────────────────────────────
 float    runningTotal = 0.0;
 int      scannedCount = 0;
+float    measuredCartWeightG = -1.0;
 CartList cartItems;   // local mirror of cart for touch hit-testing
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 void setMode(Mode m) {
   currentMode = m;
   if (m == MODE_TOTAL) {
-    display_showTotal(runningTotal);
+    display_showTotal(runningTotal, measuredCartWeightG);
   } else if (m == MODE_CART) {
-    display_showCartList(cartItems, runningTotal);
+    display_showCartList(cartItems, runningTotal, measuredCartWeightG);
   } else if (m == MODE_RECS) {
     RecommendationList recs = apiClient_getRecommendations();
     display_showRecommendations(recs);
   }
+}
+
+int totalCartQty() {
+  int qty = 0;
+  for (CartItem& item : cartItems) {
+    qty += item.qty;
+  }
+  return qty;
 }
 
 // Fetch full cart from backend and rebuild local cartItems mirror
@@ -70,14 +79,15 @@ void setup() {
   Serial.println("Display OK");
   scanner_init();
   Serial.println("Scanner OK");
-  // scale_init();
+  scale_init();
   Serial.println("About to connect WiFi...");
   connectWiFi();
   Serial.println("WiFi done");
   Serial.println("About to init API...");
   apiClient_init(BACKEND_IP, BACKEND_PORT, CART_ID);
   Serial.println("API OK");
-  display_showTotal(0.0);
+  measuredCartWeightG = scale_readGrams();
+  display_showTotal(0.0, measuredCartWeightG);
   Serial.println("Setup complete");
 /*
   Serial.begin(115200);
@@ -109,14 +119,46 @@ void pollCartIfNeeded() {
     // Show the scanned item name briefly
     if (!cr.items.empty()) {
       CartItem& last = cr.items.back();
-      display_showItem(last.name, last.price, cr.total);
+      display_showItem(last.name, last.price, last.weightG, cr.total);
       delay(2000);  // show item for 2 seconds
     }
 
     // Then switch to cart list so all items are visible
     currentMode = MODE_CART;
-    display_showCartList(cartItems, runningTotal);
+    display_showCartList(cartItems, runningTotal, measuredCartWeightG);
     Serial.println("Screen updated with cart list!");
+  }
+}
+
+void handleScaleEvent() {
+  ScaleEvent event;
+  if (!scale_update(event)) return;
+
+  measuredCartWeightG = event.newWeightG;
+  Serial.printf("[Scale] Stable basket weight: %.1fg (%+.1fg)\n",
+    event.newWeightG, event.changeG);
+
+  display_showStatus(String("Weight: ") + String(measuredCartWeightG, 1) + "g");
+
+  WeightVerifyResult wr = apiClient_reportWeight(
+    measuredCartWeightG,
+    totalCartQty(),
+    true
+  );
+
+  if (wr.cartChanged) {
+    runningTotal = wr.total;
+    refreshCart();
+    display_showStatus("Removed: " + wr.removedName);
+    currentMode = MODE_CART;
+    display_showCartList(cartItems, runningTotal, measuredCartWeightG);
+    delay(1200);
+  } else if (!wr.ok) {
+    display_showWeightCheck(wr.measuredG, wr.expectedG, wr.ok);
+    delay(1600);
+    setMode(currentMode);
+  } else if (currentMode == MODE_TOTAL || currentMode == MODE_CART) {
+    setMode(currentMode);
   }
 }
 
@@ -141,17 +183,17 @@ void loop() {
       refreshCart();
 
       // Show scanned item briefly
-      display_showItem(result.productName, result.productPrice, runningTotal);
+      display_showItem(result.productName, result.productPrice, result.productWeightG, runningTotal);
       delay(1200);
-/*
+
       // Weight check
       if (scannedCount % WEIGHT_CHECK_EVERY == 0) {
         display_showStatus("Checking weight...");
-        float measured = scale_readGrams();
-        WeightVerifyResult wr = apiClient_verifyWeight(measured, scannedCount);
+        measuredCartWeightG = scale_readGrams();
+        WeightVerifyResult wr = apiClient_verifyWeight(measuredCartWeightG, totalCartQty());
         display_showWeightCheck(wr.measuredG, wr.expectedG, wr.ok);
         delay(2200);
-      }*/
+      }
 
       // Return to whatever mode was active
       setMode(currentMode);
@@ -172,9 +214,8 @@ void loop() {
       if (dr.success) {
         runningTotal = dr.total;
         refreshCart();
-        //scale_tare();      // re-zero so scale reflects removed item
       }
-      display_showCartList(cartItems, runningTotal);
+      display_showCartList(cartItems, runningTotal, measuredCartWeightG);
     }
   }
 
@@ -195,6 +236,7 @@ void loop() {
     char nav = display_getNavTap(currentMode);
     if (nav == 'B') setMode(MODE_TOTAL);
   }
+  handleScaleEvent();
   pollCartIfNeeded();
   delay(40);
 }

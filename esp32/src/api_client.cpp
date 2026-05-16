@@ -21,7 +21,7 @@ String baseUrl() {
 
 // ── POST /api/cart/scan ──────────────────────────────────────────────────────
 ScanResult apiClient_scan(String barcode) {
-  ScanResult result = { false, "", 0.0, 0.0, "" };
+  ScanResult result = { false, "", 0.0, 0.0, 0.0, "" };
 
   HTTPClient http;
   http.begin(baseUrl() + "/api/cart/scan");
@@ -36,6 +36,7 @@ ScanResult apiClient_scan(String barcode) {
     result.success      = true;
     result.productName  = String((const char*)doc["product"]["name"]);
     result.productPrice = doc["product"]["price"].as<float>();
+    result.productWeightG = doc["product"]["weightG"].as<float>();
     result.total        = doc["cart"]["total"].as<float>();
   } else if (code == 404) {
     result.errorMsg = "Not found";
@@ -82,7 +83,11 @@ void apiClient_clearCart() {
 
 // ── POST /api/cart/verify-weight ─────────────────────────────────────────────
 WeightVerifyResult apiClient_verifyWeight(float measuredG, int itemCount) {
-  WeightVerifyResult result = { false, 0.0, measuredG, 0.0, "" };
+  return apiClient_reportWeight(measuredG, itemCount, false);
+}
+
+WeightVerifyResult apiClient_reportWeight(float measuredG, int itemCount, bool autoRemove) {
+  WeightVerifyResult result = { false, 0.0, measuredG, 0.0, false, "", 0.0, "" };
 
   HTTPClient http;
   http.begin(baseUrl() + "/api/cart/verify-weight");
@@ -90,6 +95,7 @@ WeightVerifyResult apiClient_verifyWeight(float measuredG, int itemCount) {
 
   String body = "{\"measuredG\":" + String(measuredG, 1) +
                 ",\"itemCount\":" + String(itemCount) +
+                ",\"autoRemove\":" + String(autoRemove ? "true" : "false") +
                 ",\"cartId\":\"" + _cartId + "\"}";
   int code = http.POST(body);
 
@@ -100,6 +106,11 @@ WeightVerifyResult apiClient_verifyWeight(float measuredG, int itemCount) {
     result.expectedG = doc["expectedG"].as<float>();
     result.measuredG = doc["measuredG"].as<float>();
     result.diffG     = doc["diffG"].as<float>();
+    result.cartChanged = doc["cartChanged"].as<bool>();
+    result.total = doc["total"].as<float>();
+    if (!doc["removedItem"].isNull()) {
+      result.removedName = String((const char*)doc["removedItem"]["name"]);
+    }
     result.message   = String((const char*)doc["message"]);
   } else {
     result.message = "HTTP " + String(code);
@@ -128,6 +139,7 @@ CartResponse apiClient_getCart() {
       item.barcode = String((const char*)obj["barcode"]);
       item.name    = String((const char*)obj["name"]);
       item.price   = obj["price"].as<float>();
+      item.weightG = obj["weightG"].as<float>();
       item.qty     = obj["qty"].as<int>();
       cr.items.push_back(item);
     }
