@@ -12,12 +12,11 @@
 #include "scanner.h"
 #include "display.h"
 #include "api_client.h"
-#include "scale.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const char* WIFI_SSID     = "anslove5G";
-const char* WIFI_PASSWORD = "#23#29#07#";
-const char* BACKEND_IP    = "192.168.50.103";
+const char* WIFI_SSID     = "Insert new here";
+const char* WIFI_PASSWORD = "Insert new here";
+const char* BACKEND_IP    = "Insert new here";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "demo";
 
@@ -79,14 +78,12 @@ void setup() {
   Serial.println("Display OK");
   scanner_init();
   Serial.println("Scanner OK");
-  scale_init();
   Serial.println("About to connect WiFi...");
   connectWiFi();
   Serial.println("WiFi done");
   Serial.println("About to init API...");
   apiClient_init(BACKEND_IP, BACKEND_PORT, CART_ID);
   Serial.println("API OK");
-  measuredCartWeightG = scale_readGrams();
   display_showTotal(0.0, measuredCartWeightG);
   Serial.println("Setup complete");
 /*
@@ -130,38 +127,6 @@ void pollCartIfNeeded() {
   }
 }
 
-void handleScaleEvent() {
-  ScaleEvent event;
-  if (!scale_update(event)) return;
-
-  measuredCartWeightG = event.newWeightG;
-  Serial.printf("[Scale] Stable basket weight: %.1fg (%+.1fg)\n",
-    event.newWeightG, event.changeG);
-
-  display_showStatus(String("Weight: ") + String(measuredCartWeightG, 1) + "g");
-
-  WeightVerifyResult wr = apiClient_reportWeight(
-    measuredCartWeightG,
-    totalCartQty(),
-    true
-  );
-
-  if (wr.cartChanged) {
-    runningTotal = wr.total;
-    refreshCart();
-    display_showStatus("Removed: " + wr.removedName);
-    currentMode = MODE_CART;
-    display_showCartList(cartItems, runningTotal, measuredCartWeightG);
-    delay(1200);
-  } else if (!wr.ok) {
-    display_showWeightCheck(wr.measuredG, wr.expectedG, wr.ok);
-    delay(1600);
-    setMode(currentMode);
-  } else if (currentMode == MODE_TOTAL || currentMode == MODE_CART) {
-    setMode(currentMode);
-  }
-}
-
 // ── Main loop ─────────────────────────────────────────────────────────────────
 void loop() {
   static int loopCount = 0;
@@ -185,15 +150,6 @@ void loop() {
       // Show scanned item briefly
       display_showItem(result.productName, result.productPrice, result.productWeightG, runningTotal);
       delay(1200);
-
-      // Weight check
-      if (scannedCount % WEIGHT_CHECK_EVERY == 0) {
-        display_showStatus("Checking weight...");
-        measuredCartWeightG = scale_readGrams();
-        WeightVerifyResult wr = apiClient_verifyWeight(measuredCartWeightG, totalCartQty());
-        display_showWeightCheck(wr.measuredG, wr.expectedG, wr.ok);
-        delay(2200);
-      }
 
       // Return to whatever mode was active
       setMode(currentMode);
@@ -236,7 +192,6 @@ void loop() {
     char nav = display_getNavTap(currentMode);
     if (nav == 'B') setMode(MODE_TOTAL);
   }
-  handleScaleEvent();
   pollCartIfNeeded();
   delay(40);
 }

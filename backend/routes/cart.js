@@ -106,8 +106,8 @@ router.post("/verify-weight", (req, res) => {
   const { measuredG, itemCount, cartId = "demo", autoRemove = false } = req.body;
   const cart = getCart(cartId);
 
-  const TOLERANCE_G = 100;
-  const REMOVE_MATCH_TOLERANCE_G = 125;
+  const TOLERANCE_G = 25;
+  const REMOVE_MATCH_TOLERANCE_G = 45;
   let removedItem = null;
 
   let expectedG = getExpectedWeight(cart);

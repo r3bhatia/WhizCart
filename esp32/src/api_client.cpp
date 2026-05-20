@@ -24,15 +24,21 @@ ScanResult apiClient_scan(String barcode) {
   ScanResult result = { false, "", 0.0, 0.0, 0.0, "" };
 
   HTTPClient http;
-  http.begin(baseUrl() + "/api/cart/scan");
+  String url = baseUrl() + "/api/cart/scan";
+  http.begin(url);
   http.addHeader("Content-Type", "application/json");
 
   String body = "{\"barcode\":\"" + barcode + "\",\"cartId\":\"" + _cartId + "\"}";
+  Serial.println("[API] POST " + url);
+  Serial.println("[API] Body: " + body);
   int code = http.POST(body);
+  String payload = http.getString();
+  Serial.printf("[API] Scan HTTP code: %d\n", code);
+  Serial.println("[API] Scan response: " + payload);
 
   if (code == 200) {
     DynamicJsonDocument doc(1024);
-    deserializeJson(doc, http.getString());
+    deserializeJson(doc, payload);
     result.success      = true;
     result.productName  = String((const char*)doc["product"]["name"]);
     result.productPrice = doc["product"]["price"].as<float>();
@@ -126,8 +132,11 @@ CartResponse apiClient_getCart() {
   cr.total = 0.0;
 
   HTTPClient http;
-  http.begin(baseUrl() + "/api/cart?cartId=" + _cartId);
+  String url = baseUrl() + "/api/cart?cartId=" + _cartId;
+  http.begin(url);
   int code = http.GET();
+  Serial.println("[API] GET " + url);
+  Serial.printf("[API] Cart HTTP code: %d\n", code);
 
   if (code == 200) {
     DynamicJsonDocument doc(4096);

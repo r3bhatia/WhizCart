@@ -28,7 +28,7 @@ const products = [
   { barcode: "012345678912", name: "Banana (bunch)",        price: 1.29, aisle: "D1", category: "produce",  weightG: 680,  tags: ["fruit", "snack", "healthy", "breakfast"] },
   { barcode: "012345678913", name: "Baby Spinach (5oz)",    price: 3.99, aisle: "D1", category: "produce",  weightG: 142,  tags: ["vegetable", "salad", "healthy"] },
   { barcode: "012345678914", name: "Roma Tomatoes (3-pack)",price: 2.49, aisle: "D1", category: "produce",  weightG: 340,  tags: ["vegetable", "salad", "sandwich"] },
-  { barcode: "012345678915", name: "Avocado",               price: 1.49, aisle: "D1", category: "produce",  weightG: 200,  tags: ["fruit", "healthy", "sandwich", "snack"] },
+  { barcode: "012345678915", name: "Avocado",               price: 1.49, aisle: "D1", category: "produce",  weightG: 83,   tags: ["fruit", "healthy", "sandwich", "snack"] },
 
   // ── Pantry / Dry Goods ───────────────────────────────────────────────────
   { barcode: "012345678916", name: "Pasta (16oz)",          price: 1.79, aisle: "E2", category: "pantry",   weightG: 454,  tags: ["pasta", "dinner", "cooking"] },

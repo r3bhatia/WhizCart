@@ -23,16 +23,21 @@ export default function SearchPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: 18 }}>
-        Find an Item
-      </h1>
-      <input
-        className="search-input"
-        placeholder="Search products (e.g. milk, chips, eggs…)"
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        autoFocus
-      />
+    <h1 style={{ fontSize: "1.8rem", fontWeight: 800, marginBottom: 8 }}>
+      What are you shopping for?
+    </h1>
+
+    <p style={{ color: "var(--muted)", marginBottom: 20 }}>
+      Search groceries, check prices, and add items to your cart.
+    </p>
+
+    <input
+    className="search-input"
+    placeholder="Search products (e.g. milk, chips, eggs…)"
+    value={query}
+    onChange={e => setQuery(e.target.value)}
+    autoFocus
+    />
 
       {loading && <p className="empty">Searching…</p>}
 

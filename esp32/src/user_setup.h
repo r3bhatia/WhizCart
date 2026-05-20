@@ -11,11 +11,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Driver ───────────────────────────────────────────────────────────────────
-#define ILI9341_DRIVER
+#define ILI9342_DRIVER
 
 // ── Screen dimensions ─────────────────────────────────────────────────────────
-#define TFT_WIDTH  240
-#define TFT_HEIGHT 320
+// ILI9342 is landscape-native in TFT_eSPI, so it supplies 320 x 240.
+// #define TFT_WIDTH  240
+// #define TFT_HEIGHT 320
 
 // ── CYD TFT SPI pins ─────────────────────────────────────────────────────────
 #define TFT_MISO 12
