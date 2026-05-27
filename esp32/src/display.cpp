@@ -9,27 +9,37 @@
 
 #include "display.h"
 #include <TFT_eSPI.h>
-#include <XPT2046_Touchscreen.h>
+//deleted #include <XPT2046_Touchscreen.h>
 #include <SPI.h>
+#include <TAMC_GT911.h>
 
 // ── CYD XPT2046 touch pins (separate SPI bus from display) ───────────────────
-#define TOUCH_CS   33
+/* deleted #define TOUCH_CS   33
 #define TOUCH_IRQ  36   // T_IRQ — active LOW when screen is touched
 #define TOUCH_MOSI 32
 #define TOUCH_MISO 39
-#define TOUCH_CLK  25
+#define TOUCH_CLK  25*/
+#define TOUCH_SDA 19
+#define TOUCH_SCL 20
+#define TOUCH_INT -1
+#define TOUCH_RST 38
 
-// ── Layout constants (landscape 320×240) ─────────────────────────────────────
-#define HEADER_H      32
-#define STATUS_H      22
-#define NAV_H         32
+TAMC_GT911 tp(TOUCH_SDA, TOUCH_SCL,
+              TOUCH_INT, TOUCH_RST,
+              SCREEN_W, SCREEN_H);
+
+// ── Layout constants (landscape 320×240) (Changed to 800x480) ─────────────────────────────────────
+#define HEADER_H      60
+#define STATUS_H      40
+#define NAV_H         60
 #define CONTENT_Y     (HEADER_H + STATUS_H)
-#define ITEM_ROW_H    42
+#define ITEM_ROW_H    80
 #define ITEM_START_Y  CONTENT_Y
 #define MAX_CART_ROWS  4
-#define DEL_BTN_W     52
-#define SCREEN_W     320
-#define SCREEN_H     240
+#define DEL_BTN_W     100
+//changed
+#define SCREEN_W     800
+#define SCREEN_H     480
 
 // ── Color palette ─────────────────────────────────────────────────────────────
 #define BG_COLOR     TFT_BLACK
@@ -52,8 +62,8 @@
 #define TOUCH_Y_MAX  3700
 
 TFT_eSPI tft = TFT_eSPI();
-SPIClass touchSPI(VSPI);
-XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);
+/*delete SPIClass touchSPI(VSPI);
+XPT2046_Touchscreen ts(TOUCH_CS, TOUCH_IRQ);*/
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 struct ScreenPoint { int x; int y; bool valid; };
@@ -98,7 +108,7 @@ void drawBackHint() {
 
 ScreenPoint getTouchPoint() {
   if (!ts.tirqTouched() || !ts.touched()) return { 0, 0, false };
-  TS_Point p = ts.getPoint();
+  // won't work TS_Point p = ts.getPoint();
   int sx = map(p.x, TOUCH_X_MIN, TOUCH_X_MAX, 0, SCREEN_W);
   int sy = map(p.y, TOUCH_Y_MIN, TOUCH_Y_MAX, 0, SCREEN_H);
   sx = constrain(sx, 0, SCREEN_W - 1);
@@ -141,19 +151,20 @@ void display_showStatus(String msg) {
 void display_showTotal(float total) {
   drawHeader();
   clearContent();
-
-  tft.setTextSize(2);
+//changed text size
+  tft.setTextSize(4);
   tft.setTextColor(TEXT_DIM, BG_COLOR);
   tft.setCursor(8, CONTENT_Y + 4);
   tft.print("Total");
 
-  tft.setTextSize(4);
+  tft.setTextSize(5);
   tft.setTextColor(PRICE_COLOR, BG_COLOR);
   tft.setCursor(8, CONTENT_Y + 30);
   tft.print("$");
   tft.print(total, 2);
 
-  tft.setTextSize(1);
+  //changed text size
+  tft.setTextSize(2);
   tft.setTextColor(TEXT_DIM, BG_COLOR);
   tft.setCursor(8, CONTENT_Y + 92);
   tft.print("Tap a bottom button to switch views");
@@ -208,7 +219,19 @@ void display_showCartList(CartList& items, float total) {
     tft.print("Cart is empty");
     return;
   }
+//added
+  ScreenPoint getTouchPoint() {
+  tp.read();
 
+  if (!tp.isTouched)
+    return {0, 0, false};
+
+  return {
+    tp.points[0].x,
+    tp.points[0].y,
+    true
+  };
+}
   int rows = min((int)items.size(), MAX_CART_ROWS);
   for (int i = 0; i < rows; i++) {
     int y = ITEM_START_Y + i * ITEM_ROW_H;
