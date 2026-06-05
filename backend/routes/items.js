@@ -1,7 +1,7 @@
 // routes/items.js
 const express = require("express");
 const router = express.Router();
-const { findByBarcode, searchByName } = require("../mock_db/products");
+const { findByBarcode, getAllProducts } = require("../mock_db/products");
 
 // GET /api/items/:barcode
 // Called by ESP32 after scanning a barcode
@@ -16,9 +16,22 @@ router.get("/:barcode", (req, res) => {
 // GET /api/items?q=peanut
 // Called by webapp search
 router.get("/", (req, res) => {
-  const q = req.query.q || "";
-  if (!q) return res.json([]);
-  res.json(searchByName(q));
+  const q = String(req.query.q || "").trim().toLowerCase();
+  const category = String(req.query.category || "").trim().toLowerCase();
+
+  let products = getAllProducts();
+  if (category && category !== "all") {
+    products = products.filter(p => p.category === category);
+  }
+  if (q) {
+    products = products.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q) ||
+      (p.tags || []).some(tag => tag.toLowerCase().includes(q))
+    );
+  }
+
+  res.json(products);
 });
 
 module.exports = router;

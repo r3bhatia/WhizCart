@@ -5,7 +5,6 @@
 
 const products = [
   //testing
-  { barcode: "6928804011128", name: "Coca-Cola (500ml)", price: 1.99, aisle: "G2", category: "beverages", weightG: 520, tags: ["drink", "soda", "snack"] },
   // ── Dairy ────────────────────────────────────────────────────────────────
   { barcode: "012345678901", name: "Whole Milk (1 gal)",    price: 3.99, aisle: "A3", category: "dairy",    weightG: 3900, tags: ["dairy", "breakfast", "drink"] },
   { barcode: "012345678902", name: "Cheddar Cheese (8oz)",  price: 4.49, aisle: "A3", category: "dairy",    weightG: 227,  tags: ["dairy", "snack", "sandwich"] },
