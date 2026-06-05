@@ -11,11 +11,11 @@
 #include <EEPROM.h>
 #endif
 
-const char* WIFI_SSID = "Insert new here";
-const char* WIFI_PASSWORD = "Insert new here";
-const char* BACKEND_IP = "Insert new here";
+const char* WIFI_SSID = "SpectrumSetup-55E0";
+const char* WIFI_PASSWORD = "partyhome185";
+const char* BACKEND_IP = "192.168.1.103";
 const int BACKEND_PORT = 3001;
-const char* CART_ID = "demo";
+const char* CART_ID = "basket-001";
 
 const int HX711_DOUT = 4;
 const int HX711_SCK = 5;
@@ -25,10 +25,12 @@ const float FALLBACK_CALIBRATION_VALUE = 696.0;
 const float noiseClamp = 5.0;
 const float itemThreshold = 50.0;
 const float emaAlpha = 0.25;
-const float stableBand = 15.0;
-const unsigned long stableWindowMs = 800;
-const unsigned long quickEventTimeoutMs = 1800;
-const unsigned long periodicReportMs = 5000;
+const float stableBand = 20.0;
+const float stableRepeatBand = 18.0;
+const int requiredStableWindows = 2;
+const unsigned long stableWindowMs = 1200;
+const unsigned long quickEventTimeoutMs = 3000;
+const unsigned long periodicReportMs = 7000;
 
 HX711_ADC LoadCell(HX711_DOUT, HX711_SCK);
 
@@ -42,6 +44,8 @@ bool pendingEvent = false;
 float pendingPeakChange = 0;
 unsigned long pendingEventStart = 0;
 unsigned long lastReportMs = 0;
+float candidateStableWeight = 0;
+int consecutiveStableWindows = 0;
 
 float clampNoise(float value) {
   if (value < 0) return 0;
@@ -59,6 +63,8 @@ void resetBasketState() {
   pendingEvent = false;
   pendingPeakChange = 0;
   pendingEventStart = 0;
+  candidateStableWeight = 0;
+  consecutiveStableWindows = 0;
 }
 
 float readCalibrationValue() {
@@ -189,14 +195,25 @@ bool updateStableWeight(float& newWeightG, float& changeG) {
     float stableWeight = clampNoise((stableMin + stableMax) / 2.0);
     float stableChange = stableWeight - confirmedBasketWeight;
 
-    if (abs(stableChange) > itemThreshold) {
-      confirmedBasketWeight = stableWeight;
+    if (consecutiveStableWindows == 0 || abs(stableWeight - candidateStableWeight) > stableRepeatBand) {
+      candidateStableWeight = stableWeight;
+      consecutiveStableWindows = 1;
+    } else {
+      candidateStableWeight = (candidateStableWeight + stableWeight) / 2.0;
+      consecutiveStableWindows++;
+    }
+
+    if (consecutiveStableWindows >= requiredStableWindows && abs(stableChange) > itemThreshold) {
+      float previousConfirmedWeight = confirmedBasketWeight;
+      confirmedBasketWeight = candidateStableWeight;
       pendingEvent = false;
       pendingPeakChange = 0;
       newWeightG = confirmedBasketWeight;
-      changeG = stableChange;
+      changeG = confirmedBasketWeight - previousConfirmedWeight;
       changed = true;
     }
+  } else {
+    consecutiveStableWindows = 0;
   }
 
   if (pendingEvent && now - pendingEventStart > quickEventTimeoutMs) {
@@ -231,6 +248,9 @@ void loop() {
 
   if (millis() - lastReportMs > periodicReportMs) {
     float currentWeight = clampNoise(LoadCell.getData());
+    if (filterReady) {
+      currentWeight = clampNoise(filteredWeight);
+    }
     Serial.printf("[Scale] Periodic weight: %.1fg\n", currentWeight);
     reportWeight(currentWeight, false);
   }
