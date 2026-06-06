@@ -151,7 +151,8 @@ router.get("/connection-status", (req, res) => {
 
 // POST /api/cart/scan  { barcode, cartId }
 router.post("/scan", (req, res) => {
-  const { barcode, cartId = "demo" } = req.body;
+  const { cartId = "demo" } = req.body;
+  const barcode = String(req.body.barcode || "").trim();
   const product = findByBarcode(barcode);
 
   if (!product) {
@@ -285,6 +286,7 @@ router.post("/verify-weight", (req, res) => {
   let rejectedItem = null;
   let event = "verified";
   let pending = pendingScans[cartId];
+  let attemptedExpectedG = null;
 
   if (pending) {
     const elapsedMs = Date.now() - pending.scannedAt;
@@ -293,6 +295,7 @@ router.post("/verify-weight", (req, res) => {
     const measuredDeltaG = measuredG - pending.baselineG;
     const deltaDiffG = measuredDeltaG - expectedDeltaG;
     const toleranceG = getProductWeightTolerance(product);
+    attemptedExpectedG = getExpectedWeight(cart) + expectedDeltaG;
 
     if (Math.abs(deltaDiffG) <= toleranceG) {
       addOneItem(cart, product);
@@ -333,7 +336,9 @@ router.post("/verify-weight", (req, res) => {
     }
   }
 
-  let expectedG = getExpectedWeight(cart);
+  let expectedG = event === "mismatch" || event === "cancelled"
+    ? attemptedExpectedG
+    : getExpectedWeight(cart);
   let diffG = measuredG - expectedG;
 
   if (autoRemove && diffG < -TOLERANCE_G && cart.items.length > 0) {

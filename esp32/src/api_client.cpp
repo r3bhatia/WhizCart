@@ -20,11 +20,13 @@ String baseUrl() {
 }
 
 void applyHttpTimeouts(HTTPClient& http) {
-  http.setTimeout(1200);
+  http.setTimeout(2000);
+  http.setReuse(false);
 }
 
 void applyStartupHttpTimeouts(HTTPClient& http) {
   http.setTimeout(3000);
+  http.setReuse(false);
 }
 
 String httpFailureMessage(int code) {
@@ -86,7 +88,13 @@ ScanResult apiClient_scan(String barcode) {
       result.errorMsg = "Finish pending item first";
     }
   } else if (code == 404) {
-    result.errorMsg = "Not in mock_db";
+    DynamicJsonDocument doc(512);
+    DeserializationError error = deserializeJson(doc, payload);
+    if (!error && !doc["barcode"].isNull()) {
+      result.errorMsg = "Not in mock_db: " + String((const char*)doc["barcode"]);
+    } else {
+      result.errorMsg = "Not in mock_db: " + barcode;
+    }
   } else {
     result.errorMsg = httpFailureMessage(code);
   }

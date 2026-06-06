@@ -5,15 +5,16 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <HX711_ADC.h>
+#include <ArduinoJson.h>
 #include <math.h>
 
 #if defined(ESP8266) || defined(ESP32) || defined(AVR)
 #include <EEPROM.h>
 #endif
 
-const char* WIFI_SSID = "SpectrumSetup-55E0";
-const char* WIFI_PASSWORD = "partyhome185";
-const char* BACKEND_IP = "192.168.1.103";
+const char* WIFI_SSID = "riya";
+const char* WIFI_PASSWORD = "12345678";
+const char* BACKEND_IP = "192.168.137.106";
 const int BACKEND_PORT = 3001;
 const char* CART_ID = "basket-001";
 
@@ -31,12 +32,14 @@ const int requiredStableWindows = 2;
 const unsigned long stableWindowMs = 1200;
 const unsigned long quickEventTimeoutMs = 3000;
 const unsigned long periodicReportMs = 7000;
+const unsigned long cartStatePollMs = 1000;
 
 HX711_ADC LoadCell(HX711_DOUT, HX711_SCK);
 
 float filteredWeight = 0;
 bool filterReady = false;
 float confirmedBasketWeight = 0;
+float lastRawWeight = 0;
 float stableMin = 0;
 float stableMax = 0;
 unsigned long stableWindowStart = 0;
@@ -46,11 +49,16 @@ unsigned long pendingEventStart = 0;
 unsigned long lastReportMs = 0;
 float candidateStableWeight = 0;
 int consecutiveStableWindows = 0;
+bool backendHasPendingItem = false;
+bool backendHasCartItems = false;
+unsigned long lastCartStatePollMs = 0;
+
+void connectWiFi();
 
 float clampNoise(float value) {
-  if (value < 0) return 0;
-  if (abs(value) < noiseClamp) return 0;
-  return value;
+  float magnitude = abs(value);
+  if (magnitude < noiseClamp) return 0;
+  return magnitude;
 }
 
 void resetBasketState() {
@@ -89,17 +97,78 @@ String baseUrl() {
   return "http://" + String(BACKEND_IP) + ":" + String(BACKEND_PORT);
 }
 
+bool refreshCartState() {
+  if (WiFi.status() != WL_CONNECTED) {
+    connectWiFi();
+  }
+
+  HTTPClient http;
+  String url = baseUrl() + "/api/cart?cartId=" + String(CART_ID);
+  http.begin(url);
+  http.setTimeout(1500);
+  http.setReuse(false);
+
+  int code = http.GET();
+  bool ok = false;
+  if (code == 200) {
+    DynamicJsonDocument doc(2048);
+    DeserializationError error = deserializeJson(doc, http.getString());
+    if (!error) {
+      backendHasPendingItem = !doc["pendingItem"].isNull();
+      JsonArray items = doc["items"].as<JsonArray>();
+      backendHasCartItems = items.size() > 0;
+      ok = true;
+    }
+  }
+
+  Serial.printf("[Scale API] Cart state HTTP code: %d pending=%s items=%s\n",
+    code,
+    backendHasPendingItem ? "yes" : "no",
+    backendHasCartItems ? "yes" : "no");
+
+  http.end();
+  return ok;
+}
+
+void refreshCartStateIfNeeded() {
+  if (millis() - lastCartStatePollMs < cartStatePollMs) return;
+  lastCartStatePollMs = millis();
+  refreshCartState();
+}
+
 void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true);
+  delay(300);
+
+  Serial.println("[WiFi] Scanning nearby networks...");
+  int networkCount = WiFi.scanNetworks();
+  Serial.printf("[WiFi] Found %d networks\n", networkCount);
+  for (int i = 0; i < networkCount; i++) {
+    Serial.printf("[WiFi] %s RSSI=%d channel=%d encryption=%d\n",
+      WiFi.SSID(i).c_str(),
+      WiFi.RSSI(i),
+      WiFi.channel(i),
+      WiFi.encryptionType(i));
+  }
+  WiFi.scanDelete();
+
   Serial.print("[WiFi] Connecting to ");
   Serial.println(WIFI_SSID);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  unsigned long startMs = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startMs < 20000) {
     delay(500);
-    Serial.print(".");
+    Serial.printf("[WiFi] status=%d elapsed=%lus\n", WiFi.status(), (millis() - startMs) / 1000);
   }
 
-  Serial.println();
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.printf("[WiFi] FAILED status=%d. Check SSID/password and 2.4GHz WiFi.\n", WiFi.status());
+    return;
+  }
+
+  WiFi.setSleep(false);
   Serial.print("[WiFi] Connected. IP: ");
   Serial.println(WiFi.localIP());
 }
@@ -112,6 +181,8 @@ void reportWeight(float measuredG, bool autoRemove) {
   HTTPClient http;
   String url = baseUrl() + "/api/cart/verify-weight";
   http.begin(url);
+  http.setTimeout(2000);
+  http.setReuse(false);
   http.addHeader("Content-Type", "application/json");
 
   String body = "{\"measuredG\":" + String(measuredG, 1) +
@@ -158,6 +229,7 @@ bool updateStableWeight(float& newWeightG, float& changeG) {
 
   unsigned long now = millis();
   float rawWeight = LoadCell.getData();
+  lastRawWeight = rawWeight;
 
   if (!filterReady) {
     filteredWeight = rawWeight;
@@ -235,6 +307,7 @@ void setup() {
   connectWiFi();
   initScale();
   reportWeight(0, false);
+  refreshCartState();
 }
 
 void loop() {
@@ -243,16 +316,31 @@ void loop() {
 
   if (updateStableWeight(newWeightG, changeG)) {
     Serial.printf("[Scale] Stable basket weight: %.1fg (%+.1fg)\n", newWeightG, changeG);
-    reportWeight(newWeightG, true);
+    refreshCartState();
+    if (backendHasPendingItem || backendHasCartItems) {
+      reportWeight(newWeightG, true);
+    } else {
+      Serial.println("[Scale] Ignoring stable change because cart has no pending item.");
+    }
   }
+
+  refreshCartStateIfNeeded();
 
   if (millis() - lastReportMs > periodicReportMs) {
     float currentWeight = clampNoise(LoadCell.getData());
     if (filterReady) {
       currentWeight = clampNoise(filteredWeight);
     }
-    Serial.printf("[Scale] Periodic weight: %.1fg\n", currentWeight);
-    reportWeight(currentWeight, false);
+    Serial.printf("[Scale] Periodic raw=%.1fg filtered=%.1fg normalized=%.1fg\n",
+      lastRawWeight,
+      filterReady ? filteredWeight : lastRawWeight,
+      currentWeight);
+    if (backendHasPendingItem || backendHasCartItems || currentWeight <= noiseClamp) {
+      reportWeight(currentWeight, false);
+    } else {
+      Serial.println("[Scale] Skipping periodic report until an item is scanned.");
+      lastReportMs = millis();
+    }
   }
 
   if (Serial.available() > 0) {
@@ -262,6 +350,7 @@ void loop() {
       resetBasketState();
       Serial.println("[Scale] Tare requested.");
     } else if (inByte == 'p') {
+      LoadCell.update();
       reportWeight(clampNoise(LoadCell.getData()), true);
     }
   }

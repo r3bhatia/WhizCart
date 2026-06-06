@@ -14,9 +14,9 @@
 #include "api_client.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const char* WIFI_SSID     = "PRIMPOTATO";
-const char* WIFI_PASSWORD = "thepassword";
-const char* BACKEND_IP    = "192.168.137.172";
+const char* WIFI_SSID     = "riya";
+const char* WIFI_PASSWORD = "12345678";
+const char* BACKEND_IP    = "192.168.137.106";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "basket-001";
 const char* WEBAPP_URL    = "http://192.168.137.172:5173";
@@ -56,6 +56,28 @@ void showStripeQr() {
 
 String basketWebUrl() {
   return String(WEBAPP_URL) + "/?cartId=" + String(CART_ID);
+}
+
+bool waitForBackendReady() {
+  const int maxAttempts = 6;
+  int lastCode = 0;
+
+  for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+    display_showStatus("Backend check " + String(attempt) + "/" + String(maxAttempts));
+    lastCode = apiClient_pingBackend();
+    if (lastCode == 200) {
+      display_showStatus("Backend online");
+      delay(600);
+      return true;
+    }
+
+    Serial.printf("[API] Backend check failed with code %d; retrying\n", lastCode);
+    display_showStatus("Backend failed " + String(lastCode));
+    delay(900);
+  }
+
+  display_showStatus("Backend failed " + String(lastCode));
+  return false;
 }
 
 void showBasketQr() {
@@ -182,14 +204,7 @@ void setup() {
   Serial.println("About to init API...");
   apiClient_init(BACKEND_IP, BACKEND_PORT, CART_ID);
   Serial.println("API OK");
-  int backendPingCode = apiClient_pingBackend();
-  if (backendPingCode == 200) {
-    display_showStatus("Backend online");
-    delay(600);
-  } else {
-    display_showStatus("Backend check " + String(backendPingCode));
-    delay(1200);
-  }
+  waitForBackendReady();
   waitForBasketConnectionOrSkip();
   display_showTotal(0.0, measuredCartWeightG);
   Serial.println("Setup complete");
