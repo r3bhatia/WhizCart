@@ -14,12 +14,12 @@
 #include "api_client.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const char* WIFI_SSID     = "SpectrumSetup-55E0";
-const char* WIFI_PASSWORD = "partyhome185";
-const char* BACKEND_IP    = "192.168.1.103";
+const char* WIFI_SSID     = "PRIMPOTATO";
+const char* WIFI_PASSWORD = "thepassword";
+const char* BACKEND_IP    = "192.168.137.172";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "basket-001";
-const char* WEBAPP_URL    = "http://192.168.1.103:5173";
+const char* WEBAPP_URL    = "http://192.168.137.172:5173";
 
 // ── Weight check frequency ────────────────────────────────────────────────────
 #define WEIGHT_CHECK_EVERY 1   // check after every N scans
@@ -56,6 +56,11 @@ void showStripeQr() {
 
 String basketWebUrl() {
   return String(WEBAPP_URL) + "/?cartId=" + String(CART_ID);
+}
+
+void showBasketQr() {
+  currentMode = MODE_BASKET_QR;
+  display_showBasketQr(basketWebUrl(), CART_ID);
 }
 
 void waitForBasketConnectionOrSkip() {
@@ -98,6 +103,8 @@ void setMode(Mode m) {
     display_showRecommendations(recs);
   } else if (m == MODE_PAYMENT) {
     display_showPayment(runningTotal, lastPaymentMessage);
+  } else if (m == MODE_BASKET_QR) {
+    display_showBasketQr(basketWebUrl(), CART_ID);
   }
 }
 
@@ -175,6 +182,14 @@ void setup() {
   Serial.println("About to init API...");
   apiClient_init(BACKEND_IP, BACKEND_PORT, CART_ID);
   Serial.println("API OK");
+  int backendPingCode = apiClient_pingBackend();
+  if (backendPingCode == 200) {
+    display_showStatus("Backend online");
+    delay(600);
+  } else {
+    display_showStatus("Backend check " + String(backendPingCode));
+    delay(1200);
+  }
   waitForBasketConnectionOrSkip();
   display_showTotal(0.0, measuredCartWeightG);
   Serial.println("Setup complete");
@@ -260,6 +275,7 @@ void pollWeightStatusIfNeeded() {
 
 void pollCartIfNeeded() {
   if (millis() - lastPollMs < 8000) return;
+  if (millis() - lastWeightStatusMs < 700) return;
   lastPollMs = millis();
 
   Serial.println("Polling backend...");
@@ -304,6 +320,27 @@ void loop() {
     delay(10);
     return;
   }
+
+  if (currentMode == MODE_BASKET_QR) {
+    static unsigned long lastBasketConnectionPollMs = 0;
+    char qrTap = display_getBasketQrTap();
+    if (qrTap == 'N' || qrTap == 'B') {
+      display_showStatus(qrTap == 'N' ? "Phone connection skipped" : "Back to cart");
+      delay(300);
+      setMode(MODE_TOTAL);
+    } else if (millis() - lastBasketConnectionPollMs > 1000) {
+      lastBasketConnectionPollMs = millis();
+      if (apiClient_isBasketConnected()) {
+        display_showStatus("Phone connected");
+        delay(600);
+        setMode(MODE_TOTAL);
+      }
+    }
+
+    delay(10);
+    return;
+  }
+
   // ── 1. Barcode scan ──────────────────────────────────────────────────────
   String barcode = scanner_read();
   if (barcode.length() > 0) {
@@ -358,6 +395,7 @@ void loop() {
     if      (nav == 'C') setMode(MODE_CART);
     else if (nav == 'R') setMode(MODE_RECS);
     else if (nav == 'P') showStripeQr();
+    else if (nav == 'Q') showBasketQr();
     else if (nav == 'B') setMode(MODE_TOTAL);
   } else {
     char nav = display_getNavTap(currentMode);
@@ -369,6 +407,8 @@ void loop() {
       setMode(MODE_RECS);
     } else if (nav == 'C') {
       setMode(MODE_CART);
+    } else if (nav == 'Q') {
+      showBasketQr();
     }
   }
 

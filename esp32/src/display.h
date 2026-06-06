@@ -10,7 +10,7 @@ struct CartItem { String barcode; String name; float price; float weightG; int q
 typedef std::vector<RecItem>  RecommendationList;
 typedef std::vector<CartItem> CartList;
 
-enum Mode { MODE_TOTAL, MODE_CART, MODE_RECS, MODE_PAYMENT };
+enum Mode { MODE_TOTAL, MODE_CART, MODE_RECS, MODE_PAYMENT, MODE_BASKET_QR };
 
 // ── Display functions ─────────────────────────────────────────────────────────
 void   display_init();
@@ -29,7 +29,8 @@ void   display_showBasketQr(String basketUrl, String cartId);
 // Returns barcode of tapped delete row, or "" if no delete tap detect
 String display_getCartTap(CartList& items);
 
-// Returns 'C' (cart), 'R' (recs), 'B' (back/total), or '\0' (no tap)
+// Returns 'C' (cart), 'R' (recs), 'P' (pay), 'Q' (basket QR), 'B' (back/total), or '\0' (no tap)
 char   display_getNavTap(Mode currentMode);
 char   display_getPaymentTap();
+// Returns 'N' (not right now), 'B' (back), or '\0' (no tap)
 char   display_getBasketQrTap();

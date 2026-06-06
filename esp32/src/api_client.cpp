@@ -23,6 +23,30 @@ void applyHttpTimeouts(HTTPClient& http) {
   http.setTimeout(1200);
 }
 
+void applyStartupHttpTimeouts(HTTPClient& http) {
+  http.setTimeout(3000);
+}
+
+String httpFailureMessage(int code) {
+  if (code >= 0) return "HTTP " + String(code);
+  return "Backend offline (" + String(code) + ")";
+}
+
+int apiClient_pingBackend() {
+  HTTPClient http;
+  String url = baseUrl() + "/";
+  http.begin(url);
+  applyStartupHttpTimeouts(http);
+  Serial.println("[API] GET " + url);
+  int code = http.GET();
+  Serial.printf("[API] Backend ping HTTP code: %d\n", code);
+  if (code > 0) {
+    Serial.println("[API] Backend ping response: " + http.getString());
+  }
+  http.end();
+  return code;
+}
+
 // ── POST /api/cart/scan ──────────────────────────────────────────────────────
 ScanResult apiClient_scan(String barcode) {
   ScanResult result = { false, false, "", 0.0, 0.0, 0.0, "", "" };
@@ -63,10 +87,8 @@ ScanResult apiClient_scan(String barcode) {
     }
   } else if (code == 404) {
     result.errorMsg = "Not in mock_db";
-  } else if (code < 0) {
-    result.errorMsg = "Backend offline";
   } else {
-    result.errorMsg = "HTTP " + String(code);
+    result.errorMsg = httpFailureMessage(code);
   }
 
   http.end();
@@ -173,9 +195,12 @@ CheckoutSessionResult apiClient_createCheckoutSession() {
     } else {
       result.errorMsg = "Bad Stripe response";
     }
-  } else if (code < 0) {
-    result.errorMsg = "Backend offline";
   } else {
+    if (code < 0) {
+      result.errorMsg = httpFailureMessage(code);
+      http.end();
+      return result;
+    }
       DynamicJsonDocument doc(1536);
     DeserializationError error = deserializeJson(doc, payload);
     if (!error && !doc["error"].isNull()) {

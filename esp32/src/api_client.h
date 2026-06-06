@@ -58,6 +58,7 @@ struct CheckoutSessionResult {
 };
 
 void               apiClient_init(const char* host, int port, const char* cartId);
+int                apiClient_pingBackend();
 ScanResult         apiClient_scan(String barcode);
 CartResponse       apiClient_getCart();
 DeleteResult       apiClient_deleteItem(String barcode);

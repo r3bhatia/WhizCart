@@ -30,6 +30,10 @@
 #define DEL_BTN_W 96
 #define PAY_BTN_W 132
 #define PAY_BTN_H 40
+#define QR_BTN_X 184
+#define QR_BTN_Y 10
+#define QR_BTN_W 72
+#define QR_BTN_H 36
 
 #define BACK_BTN_W 112
 #define BACK_BTN_H 36
@@ -134,6 +138,12 @@ void drawHeader() {
   gfx->setTextColor(ACCENT_DARK, PANEL_COLOR);
   gfx->setCursor(16, 16);
   gfx->print("WhizCart");
+
+  gfx->fillRoundRect(QR_BTN_X, QR_BTN_Y, QR_BTN_W, QR_BTN_H, 6, ACCENT);
+  gfx->setTextSize(2);
+  gfx->setTextColor(0xFFFF, ACCENT);
+  gfx->setCursor(QR_BTN_X + 22, QR_BTN_Y + 11);
+  gfx->print("QR");
 }
 
 void drawStatus(String msg) {
@@ -669,6 +679,7 @@ void display_showCheckoutQr(String checkoutUrl, float total, String status) {
 void display_showBasketQr(String basketUrl, String cartId) {
   gfx->fillScreen(BG_COLOR);
   drawHeader();
+  drawBackHint();
   drawStatus("Scan to join basket");
 
   int navY = screenH() - NAV_H;
@@ -742,6 +753,16 @@ char display_getBasketQrTap() {
   ScreenPoint p = getTouchPoint();
   if (!p.valid) return '\0';
 
+  int backX = screenW() - BACK_BTN_W - BACK_BTN_RIGHT;
+  if (p.x >= backX &&
+      p.x <= backX + BACK_BTN_W &&
+      p.y >= BACK_BTN_Y &&
+      p.y <= BACK_BTN_Y + BACK_BTN_H) {
+    waitForTouchRelease();
+    Serial.println("[Touch] Basket QR back");
+    return 'B';
+  }
+
   int buttonX = 24;
   int buttonY = CONTENT_Y + 206;
   int buttonW = 230;
@@ -781,6 +802,16 @@ char display_getPaymentTap() {
 char display_getNavTap(Mode currentMode) {
   ScreenPoint p = getTouchPoint();
   if (!p.valid) return '\0';
+
+  if (currentMode != MODE_BASKET_QR &&
+      p.x >= QR_BTN_X &&
+      p.x <= QR_BTN_X + QR_BTN_W &&
+      p.y >= QR_BTN_Y &&
+      p.y <= QR_BTN_Y + QR_BTN_H) {
+    waitForTouchRelease();
+    Serial.println("[Touch] Basket QR");
+    return 'Q';
+  }
 
   if (p.x >= 10 && p.x <= 170 && p.y >= 430 && p.y <= 479) {
     waitForTouchRelease();
