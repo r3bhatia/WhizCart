@@ -14,9 +14,9 @@
 #include "api_client.h"
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const char* WIFI_SSID     = "riya";
-const char* WIFI_PASSWORD = "12345678";
-const char* BACKEND_IP    = "192.168.137.106";
+const char* WIFI_SSID     = "iPhone";
+const char* WIFI_PASSWORD = "freshboi";
+const char* BACKEND_IP    = "172.20.10.7";
 const int   BACKEND_PORT  = 3001;
 const char* CART_ID       = "basket-001";
 const char* WEBAPP_URL    = "http://192.168.137.172:5173";

@@ -12,9 +12,9 @@
 #include <EEPROM.h>
 #endif
 
-const char* WIFI_SSID = "riya";
-const char* WIFI_PASSWORD = "12345678";
-const char* BACKEND_IP = "192.168.137.106";
+const char* WIFI_SSID = "iPhone";
+const char* WIFI_PASSWORD = "freshboi";
+const char* BACKEND_IP = "172.20.10.7";
 const int BACKEND_PORT = 3001;
 const char* CART_ID = "basket-001";
 
@@ -33,6 +33,8 @@ const unsigned long stableWindowMs = 1200;
 const unsigned long quickEventTimeoutMs = 3000;
 const unsigned long periodicReportMs = 7000;
 const unsigned long cartStatePollMs = 1000;
+const float autoZeroBand = 30.0;
+const unsigned long autoZeroCooldownMs = 5000;
 
 HX711_ADC LoadCell(HX711_DOUT, HX711_SCK);
 
@@ -52,13 +54,15 @@ int consecutiveStableWindows = 0;
 bool backendHasPendingItem = false;
 bool backendHasCartItems = false;
 unsigned long lastCartStatePollMs = 0;
+unsigned long lastAutoZeroMs = 0;
+bool autoZeroTarePending = false;
 
 void connectWiFi();
 
 float clampNoise(float value) {
-  float magnitude = abs(value);
-  if (magnitude < noiseClamp) return 0;
-  return magnitude;
+  if (value < 0) return 0;
+  if (abs(value) < noiseClamp) return 0;
+  return value;
 }
 
 void resetBasketState() {
@@ -284,6 +288,18 @@ bool updateStableWeight(float& newWeightG, float& changeG) {
       changeG = confirmedBasketWeight - previousConfirmedWeight;
       changed = true;
     }
+
+    bool cartShouldBeEmpty = !backendHasPendingItem && !backendHasCartItems;
+    bool scaleLooksEmpty = abs(stableWeight) <= noiseClamp && abs(filteredWeight) <= autoZeroBand;
+    bool hasHiddenDrift = abs(filteredWeight) > noiseClamp;
+    bool tareIsDue = !autoZeroTarePending && millis() - lastAutoZeroMs > autoZeroCooldownMs;
+
+    if (!changed && cartShouldBeEmpty && scaleLooksEmpty && hasHiddenDrift && tareIsDue) {
+      autoZeroTarePending = true;
+      lastAutoZeroMs = millis();
+      LoadCell.tareNoDelay();
+      Serial.printf("[Scale] Auto-zero requested. Filtered drift: %.1fg\n", filteredWeight);
+    }
   } else {
     consecutiveStableWindows = 0;
   }
@@ -356,6 +372,7 @@ void loop() {
   }
 
   if (LoadCell.getTareStatus()) {
+    autoZeroTarePending = false;
     resetBasketState();
     Serial.println("[Scale] Tare complete.");
     reportWeight(0, false);
